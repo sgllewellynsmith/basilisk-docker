@@ -19,6 +19,4 @@ then
    hostdir=$1
 fi
 
-docker run -it --security-opt seccomp=unconfined -e DISPLAY=$IP:0 -v /tmp/.X11-unix:/tmp/.X11-unix  -v "$dir":/home/basilisk/"$hostdir" basilisk-docker
-
-
+docker run -it --security-opt seccomp=unconfined -e DISPLAY=$IP:0 -v /tmp/.X11-unix:/tmp/.X11-unix  -v "$dir":/home/basilisk/"$hostdir" sgls/basilisk-docker
