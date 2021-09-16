@@ -1,4 +1,4 @@
-# SGLS 090921
+# SGLS 091621
 
 FROM debian:latest
 
@@ -40,6 +40,8 @@ RUN apt-get -y update && apt-get install -y \
 RUN apt-get -y update && apt-get install -y \
     sudo python-tk python3-pip
 RUN pip install matplotlib gprof2dot xdot
+# have lost python?
+RUN apt-get -y update && apt-get install -y python
 # gerris
 RUN apt-get -y update && apt-get install -y \
     gerris gfsview-batch
@@ -111,24 +113,7 @@ RUN wget ftp://ftp.freedesktop.org/pub/mesa/glu/glu-9.0.0.tar.gz; \
     tar xzvf glu-9.0.0.tar.gz
 USER root
 RUN cd mesa-19.0.4; \
-    ls; \
     make install
-
-# that was the slow bit
-# now install other useful stuff
-
-# jview stuff (may not need git if not building a server)	 
-RUN apt-get -y update && apt-get install -y chromium git
-# other useful packages (SGLS)
-# non-graphical (gfortran used in Vofi tests)
-RUN apt-get -y update && apt-get install -y \
-     less emacs
-# graphical
-RUN apt-get -y update && apt-get install -y \
-    vlc xpdf gimp xterm evince meshlab gv eog
-# nomacs has gone?
-RUN apt-get -y update && apt-get install -y feh
-
 USER basilisk
 RUN cd glu-9.0.0; \
     ./configure; \
@@ -144,99 +129,63 @@ RUN cd glu-9.0.0; \
 #RUN apt-get -y update && apt-get install -y libglew-dev freeglut3-dev
 USER basilisk
 
+# that was the slow bit
+# now install other useful stuff
+
 USER root
-RUN apt-get -y update && apt-get install -y firefox-esr
-USER basilisk
+# jview (may not need git if not building a server)	 
+RUN apt-get -y update && apt-get install -y chromium git firefox-esr
+# other useful packages (SGLS)
+# non-graphical (gfortran used in Vofi tests)
+RUN apt-get -y update && apt-get install -y \
+     less emacs
+# graphical - nomacs has gone?
+RUN apt-get -y update && apt-get install -y \
+    vlc xpdf gimp xterm evince meshlab gv eog feh
 
-# probably fine up to here
+# PPR
+RUN cd $BASILISK/ppr; \
+    make
 
-# off-screen rendering
-#ENV CFLAGS += -g -Wall -pipe -D_FORTIFY_SOURCE=2
-#ENV OPENGLIBS = -lfb_osmesa -lGLU -lOSMesa
-#RUN cd $BASILISK; \
-#    rm config; \
-#    cp config.gcc config; \
-#    sed -i 's/-lfb_dumb/-lfb_osmesa -lGLU -lOSMesa/' config; \
-#    sed -i 's/-DDUMBGL//' config; \
-#    cat config; \
-#    make clean
-#RUN cd $BASILISK/gl; \
-#    make clean; \
-#    make libglutils.a libfb_osmesa.a
-# graphics-acceleration hardware
-#ENV OPENGLIBS = -lfb_glx -lGLU -lGLEW -lGL -lX11
+# rendering
+RUN cd $BASILISK/gl; \
+    make libglutils.a libfb_osmesa.a libfb_glx.a
 RUN cd $BASILISK; \
     rm config; \
     cp config.gcc config; \
     sed -i 's/-lfb_dumb/-lfb_glx -lGLU -lGLEW -lGL -lX11/' config; \
     sed -i 's/-DDUMBGL//' config; \
     cat config; \
-    make clean
-RUN cd $BASILISK/gl; \
     make clean; \
-    make libfb_glx.a
-RUN cd $BASILISK; \
-    cat config; \
-    ls gl
-RUN cd $BASILISK; \
-    make clean; \
+    echo "make -k"; \
     make -k; \
-    make
-
-# bview servers off-screen rendering
-#ENV OPENGLIBS = -lfb_osmesa -lGLU -lOSMesa
-# bview servers graphics-acceleration hardware
-##ENV OPENGLIBS = -lfb_glx -lGLU -lGLEW -lGL -lX11
-#RUN cd $BASILISK; \
-#    make bview-servers
-
-# have lost python?
-USER root
-RUN apt-get -y update && apt-get install -y python
-USER basilisk
-
-# works up to here
+    make    
 
 # GOTM
 USER root
 RUN apt-get -y update && apt-get install -y cmake libnetcdff-dev
-RUN ls
+USER basilisk
 RUN wget https://github.com/gotm-model/code/archive/v5.2.1.tar.gz; \
     tar xzvf v5.2.1.tar.gz
 RUN cd code-5.2.1/src ;\
-    ls; \
     wget http://basilisk.fr/src/gotm/gotm.patch?raw -O gotm.patch; \
     patch -p0 < gotm.patch; \
     cd ..; \
-    ls; \
     mkdir build; \
     cd build; \
     cmake ../src -DGOTM_USE_FABM=off; \
     make  
-USER basilisk
+#ENV CFLAGS -L/home/basilisk/code-5.2.1/build
 
-# PPR
-RUN cd $BASILISK/ppr; \
-    make; \
-    ls
-
-USER root
-RUN apt-get -y update && apt-get install -y eog
-USER basilisk
-
-# CVMix
-#RUN git clone git@github.com:CVMix/CVMix-src.git
-#RUN ls
-
-#USER root
-# jview
-#USER basilisk
-#RUN cd $BASILISK/bview/three.js; \
-#    git init; \
-#    git remote add origin https://github.com/mrdoob/three.js.git; \
-#    git fetch; \
-#    git reset origin/master; \
-#    git checkout r124 -- .; \
-#    darcs revert -a .
+# CVMix is not built
+RUN wget https://github.com/CVMix/CVMix-src/tarball/master; \
+    tar xvzf master
+RUN mv CVMix* $BASILISK/cvmix
+RUN cd $BASILISK/cvmix; \
+    wget http://basilisk.fr/src/cvmix/Makefile?raw -O Makefile
+#ENV FC gfortran
+#ENV FCFLAGS -Wall -O2
+#RUN cd $BASILISK/cvmix; \
+#    make libcvmixc.a
 
 CMD /bin/bash
